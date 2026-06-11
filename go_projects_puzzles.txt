@@ -1,0 +1,983 @@
+================================================================================
+HASHIM — GO PROJECTS PUZZLE FILE
+Self-check file: read this, build the project, verify your output matches.
+No AI for the first 10 minutes of being stuck. Write it yourself.
+================================================================================
+
+HOW TO USE THIS FILE
+--------------------
+1. Read the PROJECT DESCRIPTION — understand what you're building and why
+2. Read WHAT YOU NEED TO KNOW — these are the only Go concepts needed
+3. Read THE PUZZLES — build each one in order, one 15-min session per puzzle
+4. After each puzzle: run your code and check against EXPECTED OUTPUT
+5. After full project: check your code against GOOD CODE / BAD CODE signs
+6. Move to next project only when ALL checkboxes at the bottom pass
+
+One rule: if your output matches but you don't understand WHY — you haven't
+finished. Stare at it until you can explain every line out loud.
+
+
+================================================================================
+PROJECT 0: memview
+Concept: Memory layout, struct alignment, CPU padding
+Difficulty: Beginner
+Sessions: 1
+================================================================================
+
+DESCRIPTION
+-----------
+You will write a Go program that shows you how your structs actually sit in
+memory. The goal is to make you SEE something that normally happens invisibly:
+the CPU forces your data to be placed at specific memory addresses, and Go's
+compiler silently adds invisible "padding" bytes between your struct fields to
+make this happen. You already love questioning struct behaviour — this makes it
+visible with numbers.
+
+WHAT YOU NEED TO KNOW BEFORE STARTING
+--------------------------------------
+- You know structs already (deep). Good.
+- You need one new package: "unsafe"
+  unsafe.Sizeof(x)    → how many bytes does x take in memory
+  unsafe.Alignof(x)   → what address boundary this type must start at
+  unsafe.Offsetof(x.Field) → how many bytes from start of struct to this field
+- That's it. No other new concept needed.
+
+THE PUZZLE
+----------
+Puzzle 1 (the only one — 15 minutes):
+  "Why does reordering struct fields change the struct's total size?"
+
+  Step 1: Create two structs with the SAME fields but in different order:
+    type BadLayout struct {
+        A bool
+        B int64
+        C bool
+    }
+    type GoodLayout struct {
+        B int64
+        A bool
+        C bool
+    }
+
+  Step 2: Print the size of each struct using unsafe.Sizeof
+  Step 3: Print the offset of each field using unsafe.Offsetof
+  Step 4: Stare at the numbers. Write in your notebook why they are different.
+
+EXPECTED OUTPUT
+---------------
+Your program must print something like this (exact numbers must match):
+
+BadLayout size:  24
+  A offset: 0   (size 1)
+  B offset: 8   (size 8)    <-- 7 bytes wasted between A and B
+  C offset: 16  (size 1)    <-- 7 bytes wasted after C
+
+GoodLayout size: 10
+  B offset: 0   (size 8)
+  A offset: 8   (size 1)
+  C offset: 9   (size 1)    <-- only 0 bytes wasted
+
+If your numbers are different from these: your struct definition is wrong.
+Fix it before moving on.
+
+NOTEBOOK QUESTION (write this down, one sentence answer):
+  "Why does BadLayout waste 14 bytes even though the fields only add up to 10?"
+  Answer you must write: "The CPU requires int64 to start at an address
+  divisible by 8. So after bool A at offset 0, Go adds 7 padding bytes
+  before B can start at offset 8."
+
+GOOD CODE SIGNS (check these yourself):
+  [ ] You used the unsafe package, not any third-party library
+  [ ] You printed both size AND offset for every field
+  [ ] Your output matches the expected output exactly
+  [ ] You can explain the 7-byte gap without looking at notes
+  [ ] Total lines of code: under 30. If more, you overcomplicated it.
+
+BAD CODE SIGNS (if any of these are true, fix before moving on):
+  [ ] You hardcoded the numbers instead of using unsafe.Sizeof
+  [ ] You have a loop — this project needs no loops
+  [ ] You imported anything other than "fmt" and "unsafe"
+
+WHAT YOU JUST LEARNED (write in notebook):
+  - CPU alignment: every type has a required starting address
+  - Go compiler adds invisible padding to satisfy alignment
+  - Struct field order affects memory usage — matters in high-performance code
+  - unsafe package lets you inspect memory layout directly
+  CS subject: Computer Organization & Architecture
+
+
+================================================================================
+PROJECT 1: tinytcp
+Concept: Raw TCP sockets, network connections, goroutines for concurrency
+Difficulty: Beginner-Medium
+Sessions: 5
+================================================================================
+
+DESCRIPTION
+-----------
+You will build a TCP server and a TCP client. No HTTP. No Gin. No framework.
+Just two Go programs that talk to each other over a raw network socket.
+One program waits. The other connects and sends a message. The first one reads
+it and sends something back.
+
+Why this matters: Every web framework you've used (Gin, Express, NestJS) is
+just a wrapper around exactly this. After this project, "what is HTTP" becomes
+an obvious question with an obvious answer: it's a text format on top of TCP.
+
+You will run two terminals. Server in one, client in the other.
+
+WHAT YOU NEED TO KNOW BEFORE STARTING
+--------------------------------------
+New concepts (each takes one read to understand):
+  net.Listen("tcp", ":8080")  → start listening on port 8080
+  listener.Accept()           → wait for someone to connect, returns a conn
+  net.Dial("tcp", "localhost:8080") → connect to a server, returns a conn
+  bufio.NewReader(conn)       → wrap connection for easy line reading
+  fmt.Fprintln(conn, "text")  → write a line to the connection
+  go someFunction()           → run function in background (you know this)
+
+Two files: server.go and client.go. Run server first, then client.
+
+THE PUZZLES
+-----------
+Puzzle 1: "Can I make a program that waits for a connection?"
+  Build server.go:
+    - Call net.Listen on port 8080
+    - Call Accept() — this BLOCKS until someone connects
+    - Print "client connected!" when Accept returns
+    - Exit. That's it for puzzle 1.
+  Test: run server in one terminal. It should hang (waiting). Good.
+  No client yet. Just verify server starts without errors.
+
+EXPECTED OUTPUT (puzzle 1 — server terminal):
+  Server listening on :8080
+
+Puzzle 2: "Can I read what the client sends me?"
+  Add to server: after Accept, read one line from the connection using bufio.
+  Build client.go: connect to localhost:8080, send "hello from client\n", exit.
+  Run server, then run client.
+
+EXPECTED OUTPUT (puzzle 2):
+  Server terminal:    Server listening on :8080
+                      Client connected!
+                      Received: hello from client
+  Client terminal:    (exits cleanly, no error)
+
+Puzzle 3: "Can I send something back?"
+  Add to server: after reading the message, write back "I got your message\n"
+  Add to client: after sending, read the server's response and print it.
+
+EXPECTED OUTPUT (puzzle 3):
+  Server terminal:    Server listening on :8080
+                      Client connected!
+                      Received: hello from client
+  Client terminal:    Server says: I got your message
+
+Puzzle 4: "Can two clients connect at the same time?"
+  Right now your server handles ONE client then exits.
+  Change it: wrap the Accept call in a for loop. When a client connects,
+  handle it with "go handleClient(conn)" so the next Accept runs immediately.
+  Open THREE terminals: server, client1, client2. Both clients must work.
+
+EXPECTED OUTPUT (puzzle 4):
+  Server terminal:    Server listening on :8080
+                      Client connected!
+                      Received: hello from client
+                      Client connected!
+                      Received: hello from client
+  Client 1 terminal:  Server says: I got your message
+  Client 2 terminal:  Server says: I got your message
+
+Puzzle 5: "What breaks when the client disconnects unexpectedly?"
+  Kill a client mid-connection (Ctrl+C). The server should NOT crash.
+  Add error checking: when Read or Write returns an error, print
+  "client disconnected" and return from the handler. Server keeps running.
+
+EXPECTED OUTPUT (puzzle 5):
+  Server terminal:    Server listening on :8080
+                      Client connected!
+                      Client disconnected (expected, handled cleanly)
+                      Server still running, ready for next client
+
+GOOD CODE SIGNS:
+  [ ] server.go and client.go are separate files
+  [ ] Server runs forever (for loop around Accept), not just once
+  [ ] Each client is handled in its own goroutine (go handleClient)
+  [ ] Errors from Read/Write are checked and handled (not ignored)
+  [ ] handleClient is a separate function, not all inside main
+  [ ] Total server.go: under 40 lines. If more, simplify.
+  [ ] Total client.go: under 20 lines.
+
+BAD CODE SIGNS:
+  [ ] All code inside main() — extract handleClient as a function
+  [ ] No error checking on Accept, Read, or Write
+  [ ] Using any import except "net", "bufio", "fmt", "log"
+  [ ] Importing "net/http" — this project must NOT use net/http
+
+OPTIMIZATION CHECK:
+  Is your handleClient reading in a loop (can handle multiple messages per
+  client) or only reading once? A loop is better. One message and close is
+  acceptable for now but note it as a limitation in your README.
+
+WHAT YOU JUST LEARNED:
+  - TCP: a socket is a file descriptor to another computer
+  - Listening on a port: OS assigns your program ownership of that port
+  - Accept blocks: this is how servers wait without burning CPU
+  - Goroutine per connection: the standard Go server pattern
+  - Error handling: network errors are normal, not exceptional
+  CS subjects: Computer Networks, Operating Systems
+
+
+================================================================================
+PROJECT 2: httpfromscratch
+Concept: HTTP/1.1 as a text protocol, parsing, routing
+Difficulty: Medium
+Sessions: 5
+================================================================================
+
+DESCRIPTION
+-----------
+You will extend your tinytcp server to understand HTTP. HTTP is not magic.
+It is a text format. A browser sends a string like this:
+
+  GET /hello HTTP/1.1\r\n
+  Host: localhost:8080\r\n
+  \r\n
+
+Your server reads that string, parses it, and sends back another string:
+
+  HTTP/1.1 200 OK\r\n
+  Content-Length: 5\r\n
+  \r\n
+  hello
+
+That is all HTTP is. After this project, "how does HTTP work" is a question
+you can answer from memory with exact details.
+
+WHAT YOU NEED TO KNOW BEFORE STARTING
+--------------------------------------
+  strings.Split(s, " ")    → split string by space
+  strings.TrimSpace(s)     → remove leading/trailing whitespace
+  strings.HasPrefix(s, x)  → check if string starts with x
+  fmt.Sprintf(format, ...) → build a formatted string
+  strconv.Itoa(n)          → convert int to string
+
+No new Go concepts. You know everything needed. This is string manipulation.
+
+THE PUZZLES
+-----------
+Puzzle 1: "What does an HTTP request actually look like as bytes?"
+  Use your tinytcp server. Instead of parsing anything, just print the
+  raw bytes you receive from the client.
+  Test by opening a browser and going to http://localhost:8080
+  OR use curl: curl http://localhost:8080
+
+EXPECTED OUTPUT (puzzle 1 — raw request printed):
+  GET / HTTP/1.1
+  Host: localhost:8080
+  User-Agent: curl/7.88.1
+  Accept: */*
+                            <-- blank line at end (this marks end of headers)
+
+Puzzle 2: "Can I extract the method and path from that string?"
+  Parse the first line of the request.
+  Split by space: parts[0] = method, parts[1] = path, parts[2] = version
+  Print them separately.
+
+EXPECTED OUTPUT (puzzle 2):
+  Method:  GET
+  Path:    /
+  Version: HTTP/1.1
+
+Puzzle 3: "Can I send back a valid HTTP response?"
+  Build a function writeResponse(conn, statusCode, body string)
+  It writes the correct HTTP response format.
+  Test: curl should show your response body. Browser should show it.
+
+EXPECTED OUTPUT (puzzle 3):
+  curl http://localhost:8080
+  → hello from my server
+
+  In your server terminal:
+  → Received: GET /
+
+Puzzle 4: "Can I route different paths to different responses?"
+  If path == "/hello"  → respond with "hello there"
+  If path == "/time"   → respond with current time (use time.Now())
+  If path == anything else → respond with "404 not found", status code 404
+
+EXPECTED OUTPUT (puzzle 4):
+  curl http://localhost:8080/hello     → hello there
+  curl http://localhost:8080/time      → 2026-05-11 21:30:00
+  curl http://localhost:8080/whatever  → 404 not found
+  (HTTP status code must be 404 for the last one, not 200)
+
+Puzzle 5: "Does a browser actually work with my server?"
+  Open http://localhost:8080/hello in a real browser.
+  It should show "hello there" as a webpage.
+  Add a Content-Type: text/plain header to your response.
+
+EXPECTED OUTPUT (puzzle 5):
+  Browser shows text: "hello there"
+  No browser error. No CORS error. No "connection refused".
+
+GOOD CODE SIGNS:
+  [ ] parseRequest is a separate function that returns method and path
+  [ ] writeResponse is a separate function (not inline in handler)
+  [ ] Status 404 for unknown routes (not 200 for everything)
+  [ ] \r\n used correctly in responses (not just \n — HTTP requires \r\n)
+  [ ] No import of "net/http" anywhere — this project MUST NOT use it
+  [ ] Handles the case where request is malformed (Split returns < 3 parts)
+  [ ] Total lines: under 60. If more, you have too much repetition.
+
+BAD CODE SIGNS:
+  [ ] Giant if-else chain directly in main() — extract to a router function
+  [ ] Not checking errors on conn.Read or conn.Write
+  [ ] Using net/http — defeats the entire purpose
+  [ ] Responding with \n instead of \r\n (technically wrong HTTP)
+  [ ] Hardcoded "Content-Length: 5" — calculate it from body length
+
+OPTIMIZATION CHECK:
+  Your writeResponse function should calculate Content-Length automatically
+  from len(body). Not hardcoded. If it's hardcoded, fix it.
+
+WHAT YOU JUST LEARNED:
+  - HTTP is a text protocol — just a formatted string over TCP
+  - Request format: method + path + version on first line, headers after
+  - Response format: status line + headers + blank line + body
+  - Routing is just: read the path, match it, call the right handler
+  - Content-Length tells the client when the response body ends
+  CS subjects: Computer Networks (HTTP/1.1 spec), Compiler Design (parsing)
+
+
+================================================================================
+PROJECT 3: mini-kvstore
+Concept: In-memory database, WAL persistence, mutex for thread safety
+Difficulty: Medium
+Sessions: 5
+================================================================================
+
+DESCRIPTION
+-----------
+You will build a key-value store — the simplest possible database. It stores
+string keys mapped to string values. Get, Set, Delete. That's it.
+
+Then you will add two critical features:
+1. Persistence: the data survives when the program crashes (Write-Ahead Log)
+2. Concurrency safety: multiple goroutines can use it without corrupting data
+
+After this project, when someone asks "how does Redis persist data" or
+"what is a WAL" or "what is a race condition", you will answer from experience,
+not from memorizing a definition.
+
+WHAT YOU NEED TO KNOW BEFORE STARTING
+--------------------------------------
+  sync.Mutex             → a lock. Lock() before reading/writing. Unlock() after.
+  os.OpenFile(path, flags, perm) → open a file for reading or writing
+  os.O_APPEND|os.O_CREATE|os.O_WRONLY → flags to open file in append mode
+  bufio.NewScanner(file)  → read a file line by line
+  strings.Fields(line)    → split line by whitespace into []string
+  defer mu.Unlock()       → unlock when function returns (learn this pattern)
+
+THE PUZZLES
+-----------
+Puzzle 1: "Can a struct with a map be a database?"
+  Build:
+    type KVStore struct { data map[string]string }
+    func NewKVStore() *KVStore
+    func (s *KVStore) Set(key, value string)
+    func (s *KVStore) Get(key string) (string, bool)
+    func (s *KVStore) Delete(key string)
+  In main: set 3 keys, get them, delete one, try to get the deleted one.
+
+EXPECTED OUTPUT (puzzle 1):
+  name: hashim
+  city: hyderabad
+  lang: go
+  after delete — name: "" found: false
+  city still exists: hyderabad
+
+Puzzle 2: "What happens to data when the program stops?"
+  Run your program. Set some keys. Now add os.Exit(0) at the end.
+  Restart the program. Try to Get those keys.
+  Output: data is gone. Feel the problem before solving it.
+
+EXPECTED OUTPUT (puzzle 2):
+  First run:   Set name=hashim, Set city=hyderabad
+  Second run:  Get name → "" (not found)
+               Get city → "" (not found)
+  (This is the expected WRONG behaviour — data loss. That's the lesson.)
+
+Puzzle 3: "Can I log every write to a file?"
+  Add a log file. Every time Set or Delete is called, append a line to the file:
+    "SET name hashim\n"
+    "DEL name\n"
+  Open the log file in append mode. Each run adds to it, doesn't overwrite.
+
+EXPECTED OUTPUT (puzzle 3 — contents of kvstore.log after running):
+  SET name hashim
+  SET city hyderabad
+  SET lang go
+  DEL name
+
+Puzzle 4: "Can I rebuild the database by replaying the log file on startup?"
+  Add a loadFromLog() function. It reads kvstore.log line by line.
+  For each "SET k v" line: call s.Set(k, v) — but without writing to log again
+    (add a boolean parameter or a separate internal set to avoid log duplication)
+  For each "DEL k" line: call s.Delete(k) — same
+  Call loadFromLog() in NewKVStore before returning.
+  Now restart the program. Data should survive.
+
+EXPECTED OUTPUT (puzzle 4):
+  First run:   Set name=hashim, Set city=hyderabad, close program
+  Second run:  Get name → "hashim" (recovered from log!)
+               Get city → "hyderabad" (recovered from log!)
+
+Puzzle 5: "What breaks when 100 goroutines write at the same time?"
+  Add this to main:
+    var wg sync.WaitGroup
+    for i := 0; i < 100; i++ {
+        wg.Add(1)
+        go func(n int) {
+            defer wg.Done()
+            s.Set(fmt.Sprintf("key%d", n), fmt.Sprintf("val%d", n))
+        }(i)
+    }
+    wg.Wait()
+  Run with: go run -race main.go
+  You WILL see a DATA RACE error. Good. That's the lesson.
+  Now add sync.Mutex to KVStore. Lock in Set/Get/Delete. Run -race again.
+  Race must be gone.
+
+EXPECTED OUTPUT (puzzle 5 — before mutex):
+  WARNING: DATA RACE
+  Write at 0x... by goroutine ...
+  Previous write at 0x... by goroutine ...
+
+EXPECTED OUTPUT (puzzle 5 — after adding mutex):
+  (100 keys set successfully, no race warning)
+  go run -race produces no warnings
+
+GOOD CODE SIGNS:
+  [ ] KVStore has a sync.Mutex field (not a global mutex)
+  [ ] Every Set/Get/Delete locks the mutex and defers Unlock
+  [ ] loadFromLog does NOT call the normal Set (would double-log)
+  [ ] Log file opened in append mode (O_APPEND) not overwrite
+  [ ] go run -race shows zero warnings after mutex added
+  [ ] NewKVStore returns *KVStore (pointer), not KVStore (value)
+  [ ] Total lines: under 80. If more, there's duplication.
+
+BAD CODE SIGNS:
+  [ ] Global mutex variable instead of field on struct
+  [ ] Lock() without defer Unlock() — risky, will deadlock if function panics
+  [ ] loadFromLog calls the public Set which writes to log — causes log explosion
+  [ ] File opened in write mode (O_WRONLY without O_APPEND) — overwrites log
+  [ ] No error handling on file open
+
+OPTIMIZATION CHECK:
+  Your Get should use Lock() too (not just Set/Delete). Why? A map read while
+  another goroutine writes is still a race. RLock/RUnlock from sync.RWMutex
+  is even better for read-heavy workloads — switch to RWMutex as a bonus.
+
+WHAT YOU JUST LEARNED:
+  - A hash map IS a database at its core
+  - WAL: write to log before saying "done" — basis of all database durability
+  - Race condition: two goroutines touching shared data simultaneously = corruption
+  - Mutex: one goroutine at a time. The OS enforces this.
+  - defer mu.Unlock(): always unlock, even if function panics
+  CS subjects: DBMS (WAL, crash recovery, ACID durability), OS (mutex, semaphore)
+
+
+================================================================================
+PROJECT 4: goroutine-pool
+Concept: Worker pool, semaphore, WaitGroup, bounded concurrency
+Difficulty: Medium
+Sessions: 3
+================================================================================
+
+DESCRIPTION
+-----------
+You will build a worker pool: a system that limits how many goroutines run at
+the same time. You have 100 tasks. You want only 5 running at once. When one
+finishes, the next one starts. This is exactly what your BITSTEK bug was about
+— too many goroutines opening DB connections simultaneously.
+
+After this project, "goroutine pool", "semaphore", and "bounded concurrency"
+are things you can implement from scratch, not just name.
+
+WHAT YOU NEED TO KNOW BEFORE STARTING
+--------------------------------------
+  Buffered channels: make(chan struct{}, 5) → channel that holds 5 items
+  Sending to full channel BLOCKS until someone receives
+  Receiving from empty channel BLOCKS until someone sends
+  This is the semaphore pattern — this is how you limit concurrency
+  sync.WaitGroup: Add(n) before starting, Done() when finished, Wait() to block
+  time.Sleep(duration): simulate a task taking time
+
+THE PUZZLES
+-----------
+Puzzle 1: "What is a buffered channel and how does it block?"
+  Create a buffered channel with capacity 3.
+  Try to send 5 items to it WITHOUT reading.
+  What happens?
+
+EXPECTED OUTPUT (puzzle 1 — intentionally deadlocks):
+  sent 1
+  sent 2
+  sent 3
+  fatal error: all goroutines are asleep — deadlock!
+  (This is correct. The channel is full. Sending blocks forever.)
+
+Now fix it: read from the channel in a goroutine, then all 5 sends work.
+This is the core insight: buffered channel = limited resource pool.
+
+Puzzle 2: "Can I limit concurrent goroutines to exactly 5?"
+  Build a worker pool:
+    sem := make(chan struct{}, 5)  // semaphore: max 5 concurrent
+    for i := 0; i < 20; i++ {
+        sem <- struct{}{}           // acquire slot (blocks if 5 already running)
+        go func(id int) {
+            defer func() { <-sem }()  // release slot when done
+            doWork(id)
+        }(i)
+    }
+  doWork should print "worker N started" and "worker N done", with a sleep.
+
+EXPECTED OUTPUT (puzzle 2 — sample, order may vary but pattern holds):
+  worker 1 started
+  worker 2 started
+  worker 3 started
+  worker 4 started
+  worker 5 started
+  worker 1 done        <-- only after one finishes does the next start
+  worker 6 started
+  worker 2 done
+  worker 7 started
+  ...
+  (At no point should you see "worker N started" for more than 5 without
+   a "done" appearing between them)
+
+To verify: add a counter. Use atomic.AddInt32 to count active workers.
+Print it in doWork. It should never exceed 5.
+
+Puzzle 3: "How do I know when ALL tasks are done?"
+  Add sync.WaitGroup. wg.Add(1) before each goroutine. wg.Done() at end of
+  goroutine. wg.Wait() after the for loop.
+  Print "all 20 tasks completed" after wg.Wait() returns.
+
+EXPECTED OUTPUT (puzzle 3):
+  [all 20 "worker N started" and "worker N done" messages]
+  all 20 tasks completed       <-- this line appears LAST, always
+
+GOOD CODE SIGNS:
+  [ ] semaphore is a chan struct{} (not chan int — struct{} uses zero bytes)
+  [ ] sem <- struct{}{} to acquire, <-sem to release
+  [ ] defer used to release semaphore (safe even if goroutine panics)
+  [ ] sync.WaitGroup used correctly: Add before goroutine, Done inside
+  [ ] "all tasks completed" always prints after last "done" message
+  [ ] Active workers never exceed the pool size (verify with counter)
+  [ ] Total lines: under 40.
+
+BAD CODE SIGNS:
+  [ ] Using time.Sleep to "wait for goroutines" instead of WaitGroup
+  [ ] Releasing semaphore with defer inside the goroutine but AFTER work —
+      correct but make sure Done() also inside goroutine, not outside
+  [ ] Pool size hardcoded as a magic number — use a const WORKERS = 5
+  [ ] No counter to verify at most N goroutines run simultaneously
+
+OPTIMIZATION CHECK:
+  Replace chan struct{} semaphore with a task channel (channel of functions).
+  This is the proper worker pool pattern:
+    jobs := make(chan func(), 100)
+    for w := 0; w < 5; w++ {
+        go func() {
+            for job := range jobs { job() }
+        }()
+    }
+    for i := 0; i < 20; i++ {
+        jobs <- func() { doWork(i) }
+    }
+    close(jobs)
+  This is cleaner. Try to rewrite to this pattern after puzzle 3 works.
+  The semaphore version and the task channel version are both valid — know both.
+
+WHAT YOU JUST LEARNED:
+  - Buffered channel as semaphore: classic OS concurrency pattern
+  - Bounded concurrency: exactly what DB connection pools do
+  - Why your BITSTEK bug happened: no pool, goroutines opened infinite connections
+  - WaitGroup: the Go way to wait for all goroutines to finish
+  - chan struct{}: zero-size type, used as signal/semaphore, wastes no memory
+  CS subjects: OS (semaphores, thread pools, Dijkstra's P/V operations)
+
+
+================================================================================
+PROJECT 5: mini-redis
+Concept: All previous concepts combined into one real project
+Difficulty: Medium-Hard
+Sessions: 10 (2 weeks)
+================================================================================
+
+DESCRIPTION
+-----------
+This is your first real portfolio project. It combines everything:
+- TCP server (tinytcp)
+- Protocol parsing (httpfromscratch — but using Redis RESP format)
+- Key-value store with WAL (mini-kvstore)
+- Concurrent clients with worker pool (goroutine-pool)
+
+You are building a simplified Redis that:
+1. Listens on TCP port 6379 (Redis's actual port)
+2. Accepts commands in RESP format (Redis's text protocol)
+3. Executes SET, GET, DEL, EXISTS, KEYS commands
+4. Persists data in a WAL log file
+5. Handles multiple clients simultaneously
+
+You can test it with the real redis-cli tool — it speaks the same protocol.
+
+WHAT IS THE RESP PROTOCOL
+--------------------------
+RESP (Redis Serialization Protocol) is simpler than HTTP. It looks like this:
+
+Client sends SET name hashim:
+  *3\r\n        <- array of 3 elements
+  $3\r\n        <- first element is 3 bytes long
+  SET\r\n       <- first element: "SET"
+  $4\r\n        <- second element is 4 bytes long
+  name\r\n      <- second element: "name"
+  $6\r\n        <- third element is 6 bytes long
+  hashim\r\n    <- third element: "hashim"
+
+Server responds OK:
+  +OK\r\n       <- simple string response
+
+Server responds with a value:
+  $6\r\n        <- bulk string, 6 bytes
+  hashim\r\n
+
+Server responds nil (key not found):
+  $-1\r\n       <- null bulk string
+
+WHAT YOU NEED TO KNOW BEFORE STARTING
+--------------------------------------
+  Everything from Projects 1, 3, and 4. No new concepts.
+  The only new thing is the RESP format — described above.
+  strings.TrimSuffix(s, "\r\n") → remove trailing \r\n from a line
+
+THE PUZZLES (week 1 — core functionality)
+------------------------------------------
+Puzzle 1: "Can I parse a RESP command from a client?"
+  Write parseRESP(reader *bufio.Reader) ([]string, error)
+  It should read the *3 line, then read each $N + value pair.
+  Test by sending raw RESP with netcat or telnet.
+  Print the parsed command as a []string.
+
+EXPECTED OUTPUT (puzzle 1 — after sending *3\r\n$3\r\nSET\r\n$4\r\nname\r\n$6\r\nhashim\r\n):
+  Parsed command: [SET name hashim]
+
+Puzzle 2: "Can I execute SET and GET?"
+  Wire up your KVStore from Project 3.
+  handleCommand(cmd []string, store *KVStore) string
+  If cmd[0] == "SET": store.Set(cmd[1], cmd[2]), return "+OK\r\n"
+  If cmd[0] == "GET": return "$N\r\nvalue\r\n" or "$-1\r\n"
+
+EXPECTED OUTPUT (puzzle 2):
+  Send: *3\r\n$3\r\nSET\r\n$4\r\nname\r\n$6\r\nhashim\r\n
+  Server prints: +OK
+  Send: *2\r\n$3\r\nGET\r\n$4\r\nname\r\n
+  Server prints: hashim
+
+Puzzle 3: "Can I add DEL and EXISTS?"
+  DEL key → deletes key, returns :1\r\n (integer 1 = deleted) or :0\r\n
+  EXISTS key → returns :1\r\n or :0\r\n
+  Test each with raw RESP input.
+
+Puzzle 4: "Can I add KEYS command?"
+  KEYS * → return all keys in the store
+  Response format for array:
+    *2\r\n$4\r\nname\r\n$4\r\ncity\r\n   (array of 2 strings)
+
+Puzzle 5: "Does redis-cli work with my server?"
+  Install redis-cli (sudo apt install redis-tools on Linux, or brew install redis)
+  Run: redis-cli -p 6379
+  Type: SET name hashim
+  Type: GET name
+  It must work exactly like real Redis.
+
+EXPECTED OUTPUT (puzzle 5):
+  redis-cli> SET name hashim
+  OK
+  redis-cli> GET name
+  "hashim"
+  redis-cli> DEL name
+  (integer) 1
+  redis-cli> GET name
+  (nil)
+
+THE PUZZLES (week 2 — persistence and expiry)
+----------------------------------------------
+Puzzle 6: "Does data survive a server restart?"
+  Copy your WAL code from Project 3. Add it to mini-redis.
+  Restart server. Run GET for keys set before restart. They must still exist.
+
+Puzzle 7: "Can I add TTL (time-to-live) / expiry?"
+  EXPIRE key seconds → sets expiry time for a key
+  When GET is called on an expired key, return nil and delete the key.
+  This requires storing expiry time alongside the value.
+  Change your store's map value from string to a struct:
+    type entry struct {
+        value  string
+        expiry time.Time  // zero value means no expiry
+    }
+
+Puzzle 8 (bonus): "Can I add a PING command?"
+  PING → responds with +PONG\r\n
+  This is how redis-cli tests if server is alive.
+
+EXPECTED OUTPUT (puzzle 8):
+  redis-cli> PING
+  PONG
+
+EXPECTED OUTPUT (full working server):
+  redis-cli> SET city hyderabad
+  OK
+  redis-cli> EXPIRE city 5
+  (integer) 1
+  redis-cli> GET city
+  "hyderabad"
+  [wait 6 seconds]
+  redis-cli> GET city
+  (nil)                     <-- key expired and was deleted
+
+GOOD CODE SIGNS:
+  [ ] parseRESP is its own function, not mixed into handleClient
+  [ ] handleCommand is its own function, takes []string, returns string
+  [ ] KVStore mutex correctly protects all reads and writes
+  [ ] redis-cli works — this is the final integration test
+  [ ] WAL log is written on SET and DEL, not on GET
+  [ ] Expired keys are lazily deleted on GET (not background cleanup — that's harder)
+  [ ] Error responses use RESP error format: -ERR message\r\n
+  [ ] At least 3 separate files: main.go, store.go, resp.go
+
+BAD CODE SIGNS:
+  [ ] Everything in one giant main() function
+  [ ] Mutex not used — run with -race to check
+  [ ] Responding to redis-cli with wrong format (it will show (error))
+  [ ] TTL stored as int seconds instead of time.Time (causes issues with restart)
+  [ ] WAL does not include expiry information (TTL lost on restart)
+
+OPTIMIZATION CHECK:
+  1. Is your RESP parser reading byte-by-byte or using bufio.ReadString?
+     bufio.ReadString('\n') is cleaner and faster. Use it.
+  2. Does your KVStore use RWMutex instead of Mutex?
+     GET can use RLock (multiple readers OK). SET/DEL use Lock (exclusive).
+     This is a real performance optimization.
+  3. Does your handleCommand do a lowercase conversion on cmd[0]?
+     Redis commands are case-insensitive. "set" and "SET" must both work.
+     strings.ToUpper(cmd[0]) at the start of handleCommand.
+
+WHAT YOU JUST LEARNED:
+  - RESP: a simple text protocol, more efficient than HTTP for this use case
+  - How Redis actually works at its core (you built it)
+  - Lazy expiry: the pattern Redis actually uses for TTL
+  - Integration testing: if redis-cli works, your protocol is correct
+  - When to split code into files: when one file gets hard to navigate
+  CS subjects: DBMS, Computer Networks, OS, Compiler Design (RESP parsing)
+
+
+================================================================================
+PROJECT 6: tiny-lexer
+Concept: Compiler design, tokenization, AST, finite automata (TOC)
+Difficulty: Medium-Hard
+Sessions: 5
+================================================================================
+
+DESCRIPTION
+-----------
+You will build a lexer (also called tokenizer/scanner) and a simple evaluator.
+A lexer is the first stage of every compiler and interpreter. It reads source
+code as a raw string and breaks it into meaningful tokens.
+
+Input:  "let x = 10 + 20 * 3"
+Output: [LET, IDENT(x), ASSIGN, NUMBER(10), PLUS, NUMBER(20), STAR, NUMBER(3)]
+
+Then you will write a parser that turns tokens into an AST (Abstract Syntax
+Tree), and an evaluator that computes the result.
+
+This is exactly what Go's compiler does to your code before running it.
+
+WHAT YOU NEED TO KNOW BEFORE STARTING
+--------------------------------------
+  iota: used to create sequential integer constants for token types
+  type TokenType int with const block using iota
+  rune vs byte: a rune is a Unicode character, use rune for char-by-char reading
+  unicode.IsDigit(r), unicode.IsLetter(r): character classification
+  strconv.Atoi(s): convert string "42" to int 42
+
+THE PUZZLES
+-----------
+Puzzle 1: "Can I define all the token types my language needs?"
+  type TokenType int
+  const (
+      ILLEGAL TokenType = iota
+      EOF
+      LET
+      IDENT    // x, y, myVar
+      NUMBER   // 42, 100
+      ASSIGN   // =
+      PLUS     // +
+      MINUS    // -
+      STAR     // *
+      SLASH    // /
+      LPAREN   // (
+      RPAREN   // )
+  )
+  type Token struct { Type TokenType; Literal string }
+  Print a few tokens to verify the struct works.
+
+EXPECTED OUTPUT (puzzle 1):
+  Token{Type: 4, Literal: "x"}    // IDENT
+  Token{Type: 5, Literal: "42"}   // NUMBER
+  Token{Type: 6, Literal: "="}    // ASSIGN
+
+Puzzle 2: "Can I tokenize a simple expression?"
+  Write: func tokenize(input string) []Token
+  It reads the input character by character.
+  Skips whitespace.
+  When it sees a digit: keep reading until non-digit, emit NUMBER token.
+  When it sees a letter: keep reading until non-letter, emit IDENT or LET.
+  When it sees +, -, *, /: emit the corresponding token.
+  When it sees =: emit ASSIGN.
+  When it reaches end of string: emit EOF.
+
+EXPECTED OUTPUT (puzzle 2):
+  Input: "let x = 10 + 20"
+  Tokens:
+    LET      "let"
+    IDENT    "x"
+    ASSIGN   "="
+    NUMBER   "10"
+    PLUS     "+"
+    NUMBER   "20"
+    EOF      ""
+
+Puzzle 3: "Can I parse tokens into an AST?"
+  For now, just handle arithmetic: "10 + 20 * 3"
+  AST node types:
+    type NumberNode struct { Value int }
+    type BinaryNode struct { Left, Right Node; Op TokenType }
+  Write a simple recursive descent parser that respects operator precedence:
+    * and / bind tighter than + and -
+  Result: BinaryNode(+, NumberNode(10), BinaryNode(*, NumberNode(20), NumberNode(3)))
+
+Puzzle 4: "Can I evaluate the AST and get the right answer?"
+  Write: func eval(node Node) int
+  NumberNode → return its value
+  BinaryNode with PLUS → return eval(left) + eval(right)
+  BinaryNode with STAR → return eval(left) * eval(right)
+  etc.
+
+EXPECTED OUTPUT (puzzle 4):
+  Input:  "10 + 20 * 3"
+  Result: 70      <-- correct (20*3=60, then 10+60=70, not (10+20)*3=90)
+
+Puzzle 5: "Can I add let variable assignment?"
+  "let x = 10 + 5"
+  "let y = x * 2"
+  Store variables in a map[string]int.
+  When evaluating an IDENT node: look it up in the map.
+
+EXPECTED OUTPUT (puzzle 5):
+  let x = 10 + 5    → x = 15
+  let y = x * 2     → y = 30
+  x + y             → 45
+
+GOOD CODE SIGNS:
+  [ ] Lexer, parser, and evaluator are separate functions or files
+  [ ] Operator precedence is correct: 10 + 20 * 3 = 70, not 90
+  [ ] EOF token is emitted at end of input (parser needs this to stop)
+  [ ] Unknown characters emit ILLEGAL token, not panic
+  [ ] Variables stored in map, not hardcoded
+  [ ] Total lines: under 150 for all 3 stages combined.
+
+BAD CODE SIGNS:
+  [ ] Using strings.Split to tokenize — won't handle multi-digit numbers
+  [ ] No operator precedence (everything evaluated left to right)
+  [ ] Panicking on unknown input instead of returning ILLEGAL token
+  [ ] Giant switch statement that handles everything — split into functions
+
+OPTIMIZATION CHECK:
+  1. Your lexer is a state machine. Can you draw it on paper?
+     State: START → reading digit → NUMBER
+     State: START → reading letter → IDENT/KEYWORD
+     This is a Finite Automaton. This IS the TOC concept.
+  2. Can your parser handle parentheses? "(10 + 20) * 3 = 90"
+     Add this as a stretch goal.
+
+WHAT YOU JUST LEARNED:
+  - Lexical analysis: how every compiler reads source code
+  - Tokenization: turning a raw string into structured data
+  - AST: tree representation of code structure
+  - Recursive descent parsing: the most readable parsing technique
+  - Operator precedence: why * binds tighter than + in every language
+  - Finite automata: your lexer's state machine IS a finite automaton (TOC)
+  CS subjects: Compiler Design, Theory of Computation, Discrete Mathematics
+
+
+================================================================================
+QUICK REFERENCE — WHAT EACH PROJECT PROVES IN AN INTERVIEW
+================================================================================
+
+PROJECT 0 (memview):
+  Q: "Why does struct field order matter in Go?"
+  A: You can give exact numbers. BadLayout=24 bytes, GoodLayout=10 bytes.
+     You can explain CPU alignment padding from memory.
+     That answer impresses most interviewers who just memorized "alignment matters".
+
+PROJECT 1 (tinytcp):
+  Q: "How does TCP work? What happens when a server listens on a port?"
+  A: You can describe the exact function calls, what Accept() does, why
+     goroutines are spawned per connection, what a socket file descriptor is.
+     Not memorized from a textbook. Built it.
+
+PROJECT 2 (httpfromscratch):
+  Q: "What is HTTP? How does it work under the hood?"
+  A: "HTTP is a text protocol over TCP. I built an HTTP server from a raw
+     TCP socket without using net/http. A request is [format]. A response
+     is [format]. I can show you the code."
+     Almost no junior can give this answer.
+
+PROJECT 3 (mini-kvstore):
+  Q: "What is a Write-Ahead Log? What is a race condition?"
+  A: "I built both. WAL is appending every operation to a file before
+     confirming it — you can replay the file to recover data. Race condition
+     is two goroutines writing to the same map simultaneously — I found
+     one with go run -race and fixed it with sync.Mutex."
+
+PROJECT 4 (goroutine-pool):
+  Q: "What is a semaphore? How do you limit concurrency in Go?"
+  A: "A buffered channel of capacity N acts as a semaphore. Send to acquire,
+     receive to release. I built a worker pool that limits concurrent
+     goroutines to exactly N. This is what connection pools do."
+     Most juniors can't explain semaphores without looking it up.
+
+PROJECT 5 (mini-redis):
+  Q: "How does Redis work? Can you explain its architecture?"
+  A: "I built a simplified Redis in Go. TCP server on port 6379, RESP
+     protocol parsing, in-memory hash map with RWMutex, WAL persistence,
+     lazy TTL expiry. It works with redis-cli. The real Redis is single-
+     threaded with an event loop — mine uses goroutines per connection
+     which is different. Here's the GitHub link."
+     This is a staff-engineer-level answer from a 22-year-old.
+
+PROJECT 6 (tiny-lexer):
+  Q: "How does a compiler work? What is an AST?"
+  A: "I built a lexer and parser. The lexer reads characters and emits
+     tokens. The parser builds an AST. The evaluator walks the AST. I
+     handled operator precedence correctly — 10+20*3=70 not 90. The lexer
+     is a finite automaton — each character class triggers a state transition."
+
+================================================================================
+END OF PUZZLE FILE
+Last updated: May 11, 2026
+Next update: After mini-redis is complete (target: July 2026)
+================================================================================
