@@ -16,4 +16,11 @@ func main() {
 	}
 	defer listener.Close()
 
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "Hello, World!")
+	}
+	http.ListenAndServe("localhost:"+PORT, nil)
+
+	fmt.Println("TCP server listening on port", PORT)
+
 }
