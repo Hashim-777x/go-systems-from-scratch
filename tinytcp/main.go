@@ -1,26 +1,43 @@
-package main 
+package main
 
 import (
+	"bufio"
 	"fmt"
 	"net"
 )
- 
+
+const port = "8080"
+
 func main() {
-	fmt.Println("Hello, World!")
-    const PORT = "8080"
-	
-	listener, err := net.Listen("tcp", "localhost:"+PORT)
+	listener, err := net.Listen("tcp", ":"+port)
 	if err != nil {
 		fmt.Println("Error starting TCP server:", err)
 		return
 	}
 	defer listener.Close()
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "Hello, World!")
+	fmt.Println("Server listening on :" + port)
+
+	conn, err := listener.Accept()
+	if err != nil {
+		fmt.Println("Error accepting connection:", err)
+		return
 	}
-	http.ListenAndServe("localhost:"+PORT, nil)
+	defer conn.Close()
 
-	fmt.Println("TCP server listening on port", PORT)
+	fmt.Println("Client connected!")
 
+	reader := bufio.NewReader(conn)
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		fmt.Println("Error reading from client:", err)
+		return
+	}
+	fmt.Printf("Received: %s", line)
+
+	_, err = fmt.Fprintln(conn, "I got your message")
+	if err != nil {
+		fmt.Println("Error writing to client:", err)
+		return
+	}
 }
