@@ -6,15 +6,15 @@ import (
 )
 
 type BadLayout struct {
-	A bool
-	B int64
-	C bool
-}
+	A bool   // 1 byte and padding +7 bytes to make it -> 8 bytes for formating
+	B int64 // 8 bytes it takes 
+	C bool // 1 byte and + 7 bytes of trailing padding ! -> 8 bytes 
+}       // -------------------------------TOTAL SIZE = 24 BYTES --------------------------
 
 type GoodLayout struct {
-	B int64
-	A bool
-	C bool
+	B int64  // 8 bytes ( may takes from 0 - 7 bytes )
+	A bool  // 1 bytes 
+	C bool  // 1 bytes  // 1 + 1 bytes -> 2 bytes and 6 trailing bytes -> 8 bytes 
 }
 
 func main() {

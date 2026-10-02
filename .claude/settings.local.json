@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(///wsl.localhost/Ubuntu/home/hashim/projects/**)",
+      "Read(//mnt/wsl/Ubuntu/home/hashim/projects/**)"
+    ]
+  }
+}
