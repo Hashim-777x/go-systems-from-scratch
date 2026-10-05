@@ -18,8 +18,8 @@ type GoodLayout struct {
 }
 
 func main() {
-	bad := BadLayout{}
-	good := GoodLayout{}
+	bad := BadLayout{} // struct interfaces 
+	good := GoodLayout{} // struct interfaces 
 
 	fmt.Println("BadLayout size: ", unsafe.Sizeof(bad))
 	fmt.Println("  A offset:", unsafe.Offsetof(bad.A), "  (size", unsafe.Sizeof(bad.A), ")")
