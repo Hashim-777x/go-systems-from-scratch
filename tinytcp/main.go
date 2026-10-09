@@ -3,7 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"net"
+	"net" // using a build in network package 
 )
 
 const port = "8080"
