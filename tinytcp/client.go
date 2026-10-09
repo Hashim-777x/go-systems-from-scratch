@@ -14,7 +14,8 @@ func main() {
 		fmt.Println("Error connecting to server:", err)
 		return
 	}
-	defer conn.Close()
+	defer conn.Close() // closing in the end
+	
 
 	_, err = fmt.Fprintln(conn, "hello from client")
 	if err != nil {
