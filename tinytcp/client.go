@@ -30,4 +30,10 @@ func main() {
 	}
 
 	fmt.Printf("Server says: %s", reply)
+
+	go tcp()
+}
+func tcp() {
+	conn, err := net.Dial("tcp", "localhost:"+port)	
+
 }
