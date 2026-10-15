@@ -1,6 +1,9 @@
 package main
 
-import ("net/http","fmt")
+import (
+	"net/http"
+	"fmt"
+)
 func main() {
 	fmt.Println("HTTP from scratch")
 	mux := http.NewServeMux()
